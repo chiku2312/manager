@@ -1,0 +1,45 @@
+name: Deploy Python app to Elastic Beanstalk (non-docker)
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'    # match your EB platform version
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f "requirements.txt" ]; then pip install -r requirements.txt; fi
+
+      - name: Run tests (optional)
+        run: |
+          echo "run tests here if you have any"
+
+      - name: Zip application for EB
+        run: |
+          # create zip excluding .git and node_modules etc.
+          zip -r deploy.zip . -x "*.git*" "node_modules/*" ".venv/*"
+
+      - name: Deploy to Elastic Beanstalk
+        uses: einaregilsson/beanstalk-deploy@v22
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: python
+          environment_name: python-env
+          region: us-east-1
+          version_label: "gh-${{ github.run_number }}"
+          deployment_package: deploy.zip
